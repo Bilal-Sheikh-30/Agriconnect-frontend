@@ -5,6 +5,7 @@ import { Share2, ShoppingCart, MessageSquare, TrendingUp } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import heroImage from "@/assets/hero-farm.jpg";
 
+
 const Home = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -40,7 +41,9 @@ const Home = () => {
   ];
 
   return (
+    
     <div className="min-h-screen bg-background">
+      
       {/* Hero Section */}
       <section className="relative h-[500px] md:h-[600px] overflow-hidden">
         <div 

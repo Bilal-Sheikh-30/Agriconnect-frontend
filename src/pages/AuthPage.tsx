@@ -347,7 +347,6 @@ const AuthPage = () => {
   const [loading, setLoading] = useState(false);
 
   const from = location.state?.from || "/";
-
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
@@ -362,21 +361,22 @@ const AuthPage = () => {
     const formData = new FormData(e.target);
     const email = formData.get("email");
     const password = formData.get("password");
-
     try {
       const res = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-
+      
       const data = await res.json();
       if (res.ok) {
         // Save user in AuthContext + localStorage
-        login({
-          ...data.user,
-          token: data.token || null, // optional if backend sends JWT
-        });
+        // login({
+        //     ...data.user,
+        //     token: data.access_token,  // ← use `access_token` here
+        //   });
+        login(data.user, data.access_token);
+        // console.log("User ID:", data.access_token);
         toast({
           title: "Login Successful 🎉",
           description: `Welcome back, ${data.user.name}!`,
@@ -424,10 +424,15 @@ const AuthPage = () => {
       const data = await res.json();
       if (res.ok) {
         // Save user in AuthContext (optional: login immediately after signup)
-        signup({
-          ...data.user,
-          token: data.token || null,
-        });
+        // signup({
+        //   ...data.user,
+        //   token: data.token || null,
+        // });
+        // signup({
+        //   ...data.user,
+        //   token: data.access_token,  // ← use `access_token` here
+        //   });
+        signup(data.user, data.access_token); 
 
         toast({
           title: "Account Created 🎊",
