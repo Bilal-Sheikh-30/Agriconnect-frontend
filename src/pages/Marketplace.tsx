@@ -1,37 +1,61 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Phone } from "lucide-react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Search, Phone, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "../contexts/AuthContext";
 
+interface Item {
+  id: string;
+  name: string;
+  category: string;
+  image: string;
+  price: number;
+  quantity: string | null;
+  status: string;
+  seller: string;
+  seller_name: string;
+  seller_province: string;
+  seller_city: string;
+}
+
 const Marketplace = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const navigate = useNavigate();
+
+  const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
 
-  const inputs = [
-    { id: 1, name: "Premium Wheat Seeds - 50kg", category: "Seeds", price: 5000, seller: "Green Valley Suppliers", image: "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=400&h=300&fit=crop", featured: true },
-    { id: 2, name: "Organic Fertilizer - NPK", category: "Fertilizers", price: 3500, seller: "AgriChem Pakistan", image: "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=400&h=300&fit=crop", featured: false },
-    { id: 3, name: "Pesticide Spray - 5L", category: "Pesticides", price: 2000, seller: "Crop Protection Ltd", image: "https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?w=400&h=300&fit=crop", featured: false },
-    { id: 4, name: "Corn Seeds - Hybrid", category: "Seeds", price: 4500, seller: "Seed Masters", image: "https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=400&h=300&fit=crop", featured: true },
-  ];
+  // Fetch items from API
+  const fetchItems = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("http://localhost:8000/api/v1/marketplace/available");
+      const data = await res.json();
+      setItems(data.items || []);
+      setLoading(false);
+    } catch (error) {
+      setLoading(false);
+      toast({
+        title: "Error",
+        description: "Failed to fetch marketplace items",
+        variant: "destructive",
+      });
+    }
+  };
 
-  const produce = [
-    { id: 1, name: "Fresh Wheat - 100kg", category: "Grains", price: 8000, seller: "Ali Farms", image: "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=400&h=300&fit=crop", featured: true },
-    { id: 2, name: "Organic Tomatoes - 25kg", category: "Vegetables", price: 1500, seller: "Hassan Agriculture", image: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400&h=300&fit=crop", featured: false },
-    { id: 3, name: "Fresh Potatoes - 50kg", category: "Vegetables", price: 2500, seller: "Fatima Produce", image: "https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=400&h=300&fit=crop", featured: false },
-    { id: 4, name: "Rice - Basmati 50kg", category: "Grains", price: 12000, seller: "Premium Grains Co.", image: "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400&h=300&fit=crop", featured: true },
-  ];
+  useEffect(() => {
+    fetchItems();
+  }, []);
 
-  const handleContact = (sellerName) => {
+  const handleContact = (sellerName: string) => {
     if (!user) {
       toast({
         title: "Login Required",
@@ -47,49 +71,127 @@ const Marketplace = () => {
     });
   };
 
-  const ProductCard = ({ item }) => (
-    <Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300">
-      <div className="h-48 overflow-hidden relative">
-        <img 
-          src={item.image} 
-          alt={item.name}
-          className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
-        />
-        {item.featured && (
-          <Badge className="absolute top-2 right-2 bg-accent">Featured</Badge>
-        )}
-      </div>
-      <CardHeader>
-        <CardTitle className="text-lg">{item.name}</CardTitle>
-        <CardDescription>{item.category}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold text-primary mb-2">
-          {item.price.toLocaleString()} PKR
-        </div>
-        <p className="text-sm text-muted-foreground">Seller: {item.seller}</p>
-      </CardContent>
-      <CardFooter>
-        <Button 
-          className="w-full gap-2" 
-          variant="outline"
-          onClick={() => handleContact(item.seller)}
-        >
-          <Phone className="h-4 w-4" />
-          Contact Seller
-        </Button>
-      </CardFooter>
-    </Card>
-  );
+  // POST your item
+  const handlePostItem = async () => {
+    if (!user) return;
+
+    const form = document.getElementById("marketplace-form") as HTMLFormElement;
+    const formData = new FormData(form);
+
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/marketplace/create", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        toast({
+          title: "Success",
+          description: "Item posted successfully",
+        });
+        fetchItems(); // refresh list
+      } else {
+        toast({
+          title: "Error",
+          description: data.detail || "Failed to post item",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to post item",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const filteredItems = items.filter(item => {
+    const matchesCategory = categoryFilter === "all" || item.category.toLowerCase() === categoryFilter.toLowerCase();
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">Marketplace</h1>
-          <p className="text-muted-foreground">Buy quality inputs or sell your produce directly</p>
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">Marketplace</h1>
+            <p className="text-muted-foreground">Buy quality products directly from sellers</p>
+          </div>
+
+          {/* Post Your Item Dialog */}
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button size="lg" className="gap-2" onClick={(e) => {
+                if (!user) {
+                  e.preventDefault();
+                  toast({
+                    title: "Login Required",
+                    description: "Please login to post an item.",
+                    variant: "destructive",
+                  });
+                  navigate("/auth", { state: { from: "/marketplace" } });
+                }
+              }}>
+                <Plus className="h-5 w-5" />
+                Post Your Item
+              </Button>
+            </DialogTrigger>
+
+            {user && (
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>List Your Item</DialogTitle>
+                  <p className="text-muted-foreground">Share your item with the community</p>
+                </DialogHeader>
+
+                <form id="marketplace-form" className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <label htmlFor="name">Item Name</label>
+                    <Input id="name" name="name" placeholder="e.g., Wheat Seeds" required />
+                  </div>
+                  <div className="grid gap-2">
+                    <label htmlFor="category">Category</label>
+                    <Select id="category" name="category" required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Grain">Grain</SelectItem>
+                        <SelectItem value="Crop Seeds">Crop Seeds</SelectItem>
+                        <SelectItem value="Fertilizers">Fertilizers</SelectItem>
+                        <SelectItem value="Vegetables">Vegetables</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <label htmlFor="price">Price (PKR)</label>
+                    <Input id="price" name="price" type="number" placeholder="1000" required />
+                  </div>
+                  <div className="grid gap-2">
+                    <label htmlFor="quantity">Quantity</label>
+                    <Input id="quantity" name="quantity" placeholder="e.g., 10 kg" required />
+                  </div>
+                  <div className="grid gap-2">
+                    <label htmlFor="image">Upload Image</label>
+                    <Input id="image" name="image" type="file" accept="image/*" required />
+                  </div>
+                  <DialogFooter>
+                    <Button type="button" onClick={handlePostItem}>Post Item</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            )}
+          </Dialog>
         </div>
 
+        {/* Filters */}
         <div className="flex flex-col md:flex-row gap-4 mb-8">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -100,70 +202,215 @@ const Marketplace = () => {
               className="pl-10"
             />
           </div>
+
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="w-full md:w-[200px]">
               <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              <SelectItem value="seeds">Seeds</SelectItem>
+              <SelectItem value="grain">Grain</SelectItem>
+              <SelectItem value="crop seeds">Crop Seeds</SelectItem>
               <SelectItem value="fertilizers">Fertilizers</SelectItem>
-              <SelectItem value="pesticides">Pesticides</SelectItem>
-              <SelectItem value="grains">Grains</SelectItem>
               <SelectItem value="vegetables">Vegetables</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
-        <Tabs defaultValue="inputs" className="w-full">
-          <TabsList className="grid w-full md:w-[400px] grid-cols-2 mb-8">
-            <TabsTrigger value="inputs">Buy Inputs</TabsTrigger>
-            <TabsTrigger value="produce">Sell Produce</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="inputs">
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-foreground mb-4">Featured Products</h2>
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {inputs.filter(item => item.featured).map(item => (
-                  <ProductCard key={item.id} item={item} />
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-foreground mb-4">All Inputs</h2>
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {inputs.map(item => (
-                  <ProductCard key={item.id} item={item} />
-                ))}
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="produce">
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-foreground mb-4">Featured Produce</h2>
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {produce.filter(item => item.featured).map(item => (
-                  <ProductCard key={item.id} item={item} />
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-foreground mb-4">All Produce</h2>
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {produce.map(item => (
-                  <ProductCard key={item.id} item={item} />
-                ))}
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
+        {/* Items Grid */}
+        {loading ? (
+          <p>Loading items...</p>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {filteredItems.map(item => (
+              <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow duration-300">
+                <div className="h-48 overflow-hidden relative">
+                  <img 
+                    src={item.image} 
+                    alt={item.name}
+                    className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
+                  />
+                </div>
+                <CardHeader>
+                  <CardTitle className="text-lg">{item.name}-{item.quantity}</CardTitle>
+                  <CardDescription>{item.category}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-primary mb-2">
+                    {item.price.toLocaleString()} PKR
+                  </div>
+                  <p className="text-sm text-muted-foreground">Seller: {item.seller_name} ({item.seller_city})</p>
+                </CardContent>
+                <CardFooter>
+                  <Button className="w-full gap-2" variant="outline" onClick={() => handleContact(item.seller_name)}>
+                    <Phone className="h-4 w-4" />
+                    Contact Seller
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 export default Marketplace;
+
+
+
+// import { useState, useEffect } from "react";
+// import { useNavigate } from "react-router-dom";
+// import { Button } from "@/components/ui/button";
+// import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+// import { Input } from "@/components/ui/input";
+// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+// import { Search, Phone } from "lucide-react";
+// import { useToast } from "@/hooks/use-toast";
+// import { useAuth } from "../contexts/AuthContext";
+
+// interface Item {
+//   id: string;
+//   name: string;
+//   category: string;
+//   image: string;
+//   price: number;
+//   quantity: string | null;
+//   status: string;
+//   seller: string;
+//   seller_name: string;
+//   seller_province: string;
+//   seller_city: string;
+// }
+
+// const Marketplace = () => {
+//   const { toast } = useToast();
+//   const { user, token } = useAuth();
+//   const navigate = useNavigate();
+
+//   const [items, setItems] = useState<Item[]>([]);
+//   const [loading, setLoading] = useState(false);
+//   const [searchQuery, setSearchQuery] = useState("");
+//   const [categoryFilter, setCategoryFilter] = useState("all");
+
+//   // Fetch all available items from API
+//   const fetchItems = async () => {
+//     try {
+//       setLoading(true);
+//       const res = await fetch("http://localhost:8000/api/v1/marketplace/available"); // replace with your API
+//       const data = await res.json();
+//       setItems(data.items || []);
+//       setLoading(false);
+//     } catch (error) {
+//       setLoading(false);
+//       toast({
+//         title: "Error",
+//         description: "Failed to fetch marketplace items",
+//         variant: "destructive",
+//       });
+//     }
+//   };
+
+//   useEffect(() => {
+//     fetchItems();
+//   }, []);
+
+//   const handleContact = (sellerName: string) => {
+//     if (!user) {
+//       toast({
+//         title: "Login Required",
+//         description: "Please login to contact sellers.",
+//         variant: "destructive",
+//       });
+//       navigate('/auth', { state: { from: '/marketplace' } });
+//       return;
+//     }
+//     toast({
+//       title: "Contact Request Sent",
+//       description: `We'll connect you with ${sellerName} shortly.`,
+//     });
+//   };
+
+//   const filteredItems = items.filter(item => {
+//     const matchesCategory = categoryFilter === "all" || item.category.toLowerCase() === categoryFilter.toLowerCase();
+//     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+//     return matchesCategory && matchesSearch;
+//   });
+
+//   return (
+//     <div className="min-h-screen bg-background">
+//       <div className="container mx-auto px-4 py-8">
+//         <div className="mb-8">
+//           <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">Marketplace</h1>
+//           <p className="text-muted-foreground">Buy quality products directly from sellers</p>
+//         </div>
+
+//         <div className="flex flex-col md:flex-row gap-4 mb-8">
+//           <div className="relative flex-1">
+//             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+//             <Input
+//               placeholder="Search products..."
+//               value={searchQuery}
+//               onChange={(e) => setSearchQuery(e.target.value)}
+//               className="pl-10"
+//             />
+//           </div>
+//           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+//             <SelectTrigger className="w-full md:w-[200px]">
+//               <SelectValue placeholder="Category" />
+//             </SelectTrigger>
+//             <SelectContent>
+//               <SelectItem value="all">All Categories</SelectItem>
+//               {/* You can add more categories dynamically if needed */}
+//               <SelectItem value="grain">Grain</SelectItem>
+//               <SelectItem value="crop seeds">Crop Seeds</SelectItem>
+//               <SelectItem value="fertilizers">Fertilizers</SelectItem>
+//               <SelectItem value="vegetables">Vegetables</SelectItem>
+//             </SelectContent>
+//           </Select>
+//         </div>
+
+//         {loading ? (
+//           <p>Loading items...</p>
+//         ) : (
+//           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+//             {filteredItems.map(item => (
+//               <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow duration-300">
+//                 <div className="h-48 overflow-hidden relative">
+//                   <img 
+//                     src={item.image} 
+//                     alt={item.name}
+//                     className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
+//                   />
+//                 </div>
+//                 <CardHeader>
+//                   <CardTitle className="text-lg">{item.name}-{item.quantity}</CardTitle>
+//                   <CardDescription>{item.category}</CardDescription>
+//                 </CardHeader>
+//                 <CardContent>
+//                   <div className="text-2xl font-bold text-primary mb-2">
+//                     {item.price.toLocaleString()} PKR
+//                   </div>
+//                   <p className="text-sm text-muted-foreground">Seller: {item.seller_name} ({item.seller_city})</p>
+//                 </CardContent>
+//                 <CardFooter>
+//                   <Button 
+//                     className="w-full gap-2" 
+//                     variant="outline"
+//                     onClick={() => handleContact(item.seller_name)}
+//                   >
+//                     <Phone className="h-4 w-4" />
+//                     Contact Seller
+//                   </Button>
+//                 </CardFooter>
+//               </Card>
+//             ))}
+//           </div>
+//         )}
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default Marketplace;
