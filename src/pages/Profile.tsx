@@ -12,10 +12,10 @@ import { useAuth } from "../contexts/AuthContext";
 
 const Profile = () => {
   const { toast } = useToast();
-  const { user, setUser, token } = useAuth(); // assumes your AuthContext provides token & setUser
+  const { user, setUser, token } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
 
-  // Form state for editing
+  // Form state
   const [form, setForm] = useState({
     name: user?.name || "",
     email: user?.email || "",
@@ -23,7 +23,6 @@ const Profile = () => {
     city: user?.city || "",
   });
 
-  // Keep form updated if user changes (optional)
   useEffect(() => {
     setForm({
       name: user?.name || "",
@@ -33,16 +32,12 @@ const Profile = () => {
     });
   }, [user]);
 
-  // Handle input changes
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.id]: e.target.value });
   };
 
-  // Save updated profile to backend
   const handleSaveProfile = async () => {
     try {
-      console.log("User ID:", user.id); // Debug: Check if user ID is available
-      console.log("Token:", token); // Debug: Check if token is available
       const res = await fetch("http://localhost:8000/auth/edit", {
         method: "PUT",
         headers: {
@@ -54,44 +49,60 @@ const Profile = () => {
 
       const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data.detail || "Failed to update profile");
-      }
+      if (!res.ok) throw new Error(data.detail || "Failed to update profile");
 
-      // Update user in AuthContext
       setUser(data.user);
-
-      toast({
-        title: "Profile Updated",
-        description: "Your profile has been successfully updated.",
-      });
+      toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
       setIsEditing(false);
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: err.message,
-        variant: "destructive",
-      });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     }
   };
 
-  // Mock data for tabs
-  const myListings = [
-    { id: 1, title: "Tractor - Massey Ferguson", type: "Equipment", status: "Active" },
-    { id: 2, title: "Wheat Seeds - 50kg", type: "Product", status: "Active" },
-    { id: 3, title: "Water Pump - 5HP", type: "Equipment", status: "Rented" },
-  ];
+  // Fetched data states
+  const [resources, setResources] = useState<any[]>([]);
+  const [items, setItems] = useState<any[]>([]);
+  const [borrowed, setBorrowed] = useState<any[]>([]);
 
-  const myRentals = [
-    { id: 1, title: "Combine Harvester", owner: "Imran Khan", status: "Active", endDate: "2024-12-20" },
-    { id: 2, title: "Seed Drill Machine", owner: "Fatima Noor", status: "Completed", endDate: "2024-11-15" },
-  ];
+  // Fetch My Listings (Resources + Items)
+  useEffect(() => {
+    const fetchListings = async () => {
+      try {
+        const resResources = await fetch("http://localhost:8000/api/v1/resource/resource/my-resources", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const dataResources = await resResources.json();
+        setResources(dataResources.resources || []);
 
-  const myTransactions = [
-    { id: 1, type: "Sale", item: "Wheat Seeds - 50kg", amount: 5000, date: "2024-11-10" },
-    { id: 2, type: "Rental Income", item: "Tractor - Massey Ferguson", amount: 2500, date: "2024-11-08" },
-    { id: 3, type: "Rental Payment", item: "Combine Harvester", amount: -5000, date: "2024-11-05" },
-  ];
+        const resItems = await fetch("http://localhost:8000/api/v1/marketplace/my-items", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const dataItems = await resItems.json();
+        setItems(dataItems.items || []);
+      } catch (err) {
+        console.error("Failed to fetch listings", err);
+      }
+    };
+
+    fetchListings();
+  }, [token]);
+
+  // Fetch My Rentals
+  useEffect(() => {
+    const fetchRentals = async () => {
+      try {
+        const res = await fetch("http://localhost:8000/my-borrowed", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        setBorrowed(data.borrowed_items || []);
+      } catch (err) {
+        console.error("Failed to fetch borrowed rentals", err);
+      }
+    };
+
+    fetchRentals();
+  }, [token]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -166,81 +177,100 @@ const Profile = () => {
             )}
           </Card>
 
-          {/* Tabs for Listings, Rentals, Transactions */}
+          {/* Tabs: My Listings & My Rentals */}
           <Tabs defaultValue="listings" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="listings">My Listings</TabsTrigger>
               <TabsTrigger value="rentals">My Rentals</TabsTrigger>
-              <TabsTrigger value="transactions">Transactions</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="listings" className="mt-6">
+            
+            {/* My Listings */}
+              <TabsContent value="listings" className="mt-6">
+                <div className="space-y-4">
+                  {[...resources, ...items].map((listing) => (
+                    <Card key={listing.id}>
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <CardTitle className="text-lg">{listing.title || listing.name}</CardTitle>
+                            <CardDescription>{listing.category}</CardDescription>
+
+                            {/* Show price for items, rent_per_hour for resources */}
+                            {listing.price !== undefined && (
+                              <p className="text-sm text-muted-foreground mt-2">
+                                Price: {listing.price.toLocaleString()} PKR
+                              </p>
+                            )}
+                            {listing.rent_per_hour !== undefined && (
+                              <p className="text-sm text-muted-foreground mt-2">
+                                Rent per hour: {listing.rent_per_hour.toLocaleString()} PKR
+                              </p>
+                            )}
+                          </div>
+
+                          <Badge variant={listing.status === "available" ? "default" : "secondary"}>
+                            {listing.status}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                    </Card>
+                  ))}
+                </div>
+              </TabsContent>
+
+
+            {/* My Rentals */}
+            {/* <TabsContent value="rentals" className="mt-6">
               <div className="space-y-4">
-                {myListings.map((listing) => (
-                  <Card key={listing.id}>
+                {borrowed.map((rental) => (
+                  <Card key={rental.rental_id}>
                     <CardHeader>
                       <div className="flex justify-between items-start">
                         <div>
-                          <CardTitle className="text-lg">{listing.title}</CardTitle>
-                          <CardDescription>{listing.type}</CardDescription>
+                          <CardTitle className="text-lg">{rental.resource_title}</CardTitle>
+                          <CardDescription>Owner: {rental.owner_name}</CardDescription>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            From: {rental.rented_from} | To: {rental.rented_to}
+                          </p>
                         </div>
-                        <Badge variant={listing.status === "Active" ? "default" : "secondary"}>
-                          {listing.status}
+                        <Badge variant="default">Rented</Badge>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                ))}
+              </div>
+            </TabsContent> */}
+                      {/* My Rentals */}
+          <TabsContent value="rentals" className="mt-6">
+            <div className="space-y-4">
+              {borrowed.map((rental) => {
+                const today = new Date();
+                const endDate = new Date(rental.rented_to);
+                const isCompleted = endDate < today;
+
+                return (
+                  <Card key={rental.rental_id}>
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="text-lg">{rental.resource_title}</CardTitle>
+                          <CardDescription>Owner: {rental.owner_name}</CardDescription>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            From: {rental.rented_from} | To: {rental.rented_to}
+                          </p>
+                        </div>
+                        <Badge variant={isCompleted ? "secondary" : "default"}>
+                          {isCompleted ? "Completed" : "Rented"}
                         </Badge>
                       </div>
                     </CardHeader>
                   </Card>
-                ))}
-              </div>
-            </TabsContent>
+                );
+              })}
+            </div>
+          </TabsContent>
 
-            <TabsContent value="rentals" className="mt-6">
-              <div className="space-y-4">
-                {myRentals.map((rental) => (
-                  <Card key={rental.id}>
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-lg">{rental.title}</CardTitle>
-                          <CardDescription>Owner: {rental.owner}</CardDescription>
-                          <p className="text-sm text-muted-foreground mt-2">
-                            End Date: {rental.endDate}
-                          </p>
-                        </div>
-                        <Badge variant={rental.status === "Active" ? "default" : "secondary"}>
-                          {rental.status}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                  </Card>
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="transactions" className="mt-6">
-              <div className="space-y-4">
-                {myTransactions.map((transaction) => (
-                  <Card key={transaction.id}>
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-lg">{transaction.item}</CardTitle>
-                          <CardDescription>{transaction.type}</CardDescription>
-                          <p className="text-sm text-muted-foreground mt-2">
-                            Date: {transaction.date}
-                          </p>
-                        </div>
-                        <div className={`text-xl font-bold ${
-                          transaction.amount > 0 ? "text-primary" : "text-destructive"
-                        }`}>
-                          {transaction.amount > 0 ? "+" : ""}{transaction.amount.toLocaleString()} PKR
-                        </div>
-                      </div>
-                    </CardHeader>
-                  </Card>
-                ))}
-              </div>
-            </TabsContent>
           </Tabs>
         </div>
       </div>
