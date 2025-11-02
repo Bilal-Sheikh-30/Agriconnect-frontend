@@ -21,6 +21,7 @@ interface Equipment {
   owner_name: string;
   owner_province: string;
   owner_city: string;
+  owner_contact: string;
 }
 
 const Resources = () => {
@@ -117,59 +118,123 @@ const Resources = () => {
   };
 
   // Submit rental request
+  // const submitRent = async () => {
+  //   if (!selectedEquipment || !startDate || !endDate) {
+  //     toast({
+  //       title: "Error",
+  //       description: "Please select start and end dates",
+  //       variant: "destructive",
+  //     });
+  //     return;
+  //   }
+
+  //   const payload = {
+  //     start_time: startDate.toISOString(),
+  //     end_time: endDate.toISOString(),
+  //     note: "Optional note",
+  //   };
+
+  //   try {
+  //     const res = await fetch(
+  //       `http://localhost:8000/equipment/${selectedEquipment.id}/rent`,
+  //       {
+  //         method: "POST",
+  //         headers: {
+  //           "Content-Type": "application/json",
+  //           Authorization: `Bearer ${token}`,
+  //         },
+  //         body: JSON.stringify(payload),
+  //       }
+  //     );
+
+  //     const data = await res.json();
+  //     if (res.ok) {
+  //       toast({
+  //         title: "Success",
+  //         description: "Equipment rented successfully",
+  //       });
+  //       setShowRentModal(false);
+  //       setStartDate(null);
+  //       setEndDate(null);
+  //     } else {
+  //       toast({
+  //         title: "Error",
+  //         description: data.detail || "Failed to rent equipment",
+  //         variant: "destructive",
+  //       });
+  //     }
+  //   } catch (error) {
+  //     toast({
+  //       title: "Error",
+  //       description: "Failed to rent equipment",
+  //       variant: "destructive",
+  //     });
+  //   }
+  // };
   const submitRent = async () => {
-    if (!selectedEquipment || !startDate || !endDate) {
-      toast({
-        title: "Error",
-        description: "Please select start and end dates",
-        variant: "destructive",
-      });
-      return;
-    }
+  if (!selectedEquipment || !startDate || !endDate) {
+    toast({
+      title: "Error",
+      description: "Please select start and end dates",
+      variant: "destructive",
+    });
+    return;
+  }
 
-    const payload = {
-      start_time: startDate.toISOString(),
-      end_time: endDate.toISOString(),
-      note: "Optional note",
-    };
-
-    try {
-      const res = await fetch(
-        `http://localhost:8000/equipment/${selectedEquipment.id}/rent`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      const data = await res.json();
-      if (res.ok) {
-        toast({
-          title: "Success",
-          description: "Equipment rented successfully",
-        });
-        setShowRentModal(false);
-        setStartDate(null);
-        setEndDate(null);
-      } else {
-        toast({
-          title: "Error",
-          description: data.detail || "Failed to rent equipment",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to rent equipment",
-        variant: "destructive",
-      });
-    }
+  const payload = {
+    start_time: startDate.toISOString(),
+    end_time: endDate.toISOString(),
+    note: "Optional note",
   };
+
+  try {
+    const res = await fetch(
+      `http://localhost:8000/equipment/${selectedEquipment.id}/rent`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await res.json();
+    if (res.ok) {
+      toast({
+        title: "Success",
+        description: "Equipment rented successfully",
+      });
+
+      // Send WhatsApp notification to the owner
+      let ownerNumber = selectedEquipment.owner_contact.toString();
+      if (ownerNumber.startsWith("0")) ownerNumber = "92" + ownerNumber.slice(1);
+
+      const waMessage = `Hello ${selectedEquipment.owner_name}, your equipment "${selectedEquipment.title}" has been rented from ${startDate.toLocaleString()} to ${endDate.toLocaleString()}.`;
+      const waLink = `https://wa.me/${ownerNumber}?text=${encodeURIComponent(waMessage)}`;
+      window.open(waLink, "_blank");
+
+      // Reset modal
+      setShowRentModal(false);
+      setStartDate(null);
+      setEndDate(null);
+    } else {
+      toast({
+        title: "Error",
+        description: data.detail || "Failed to rent equipment",
+        variant: "destructive",
+      });
+    }
+  } catch (error) {
+    toast({
+      title: "Error",
+      description: "Failed to rent equipment",
+      variant: "destructive",
+    });
+  }
+};
+
 
   // Filtering equipment
   const filteredEquipment = equipment.filter((item) => {
@@ -309,8 +374,8 @@ const Resources = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-2 text-primary font-semibold text-xl mb-2">
-                    <DollarSign className="h-5 w-5" />
-                    {item.rent_per_hour} PKR/hour
+                    {/* <DollarSign className="h-5 w-5" /> */}
+                    PKR {item.rent_per_hour} / hour
                   </div>
                   <p className="text-sm text-muted-foreground">Owner: {item.owner_name}</p>
                 </CardContent>

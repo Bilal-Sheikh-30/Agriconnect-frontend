@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Search, Phone, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "../contexts/AuthContext";
+import { console } from "inspector";
 
 interface Item {
   id: string;
@@ -21,6 +22,7 @@ interface Item {
   seller_name: string;
   seller_province: string;
   seller_city: string;
+  seller_contact: string;
 }
 
 const Marketplace = () => {
@@ -55,21 +57,76 @@ const Marketplace = () => {
     fetchItems();
   }, []);
 
-  const handleContact = (sellerName: string) => {
-    if (!user) {
-      toast({
-        title: "Login Required",
-        description: "Please login to contact sellers.",
-        variant: "destructive",
-      });
-      navigate('/auth', { state: { from: '/marketplace' } });
-      return;
-    }
+  // const handleContact = (sellerName: string) => {
+  //   if (!user) {
+  //     toast({
+  //       title: "Login Required",
+  //       description: "Please login to contact sellers.",
+  //       variant: "destructive",
+  //     });
+  //     navigate('/auth', { state: { from: '/marketplace' } });
+  //     return;
+  //   }
+  //   toast({
+  //     title: "Contact Request Sent",
+  //     description: `We'll connect you with ${sellerName} shortly.`,
+  //   });
+  // };
+//   const handleContact = (sellerName: string, sellerNumber: string) => {
+//   if (!user) {
+//     toast({
+//       title: "Login Required",
+//       description: "Please login to contact sellers.",
+//       variant: "destructive",
+//     });
+//     navigate('/auth', { state: { from: '/marketplace' } });
+//     return;
+//   }
+
+//   // WhatsApp link
+//   const message = `Hello ${sellerName}, I am interested in your product.`;
+//   const waLink = `https://wa.me/${sellerNumber}?text=${encodeURIComponent(message)}`;
+//   // const waLink = `https://wa.me/923140018046?text=${encodeURIComponent(message)}`
+
+//   // Open WhatsApp in new tab
+//   window.open(waLink, "_blank");
+
+//   toast({
+//     title: "Opening WhatsApp",
+//     description: `You are being redirected to WhatsApp to contact ${sellerName}.`,
+//   });
+// };
+const handleContact = (sellerName: string, sellerNumber: string) => {
+  if (!user) {
     toast({
-      title: "Contact Request Sent",
-      description: `We'll connect you with ${sellerName} shortly.`,
+      title: "Login Required",
+      description: "Please login to contact sellers.",
+      variant: "destructive",
     });
-  };
+    navigate('/auth', { state: { from: '/marketplace' } });
+    return;
+  }
+
+  // Convert local number to international format (Pakistan)
+  let formattedNumber = sellerNumber;
+  if (formattedNumber.startsWith("0")) {
+    formattedNumber = "92" + formattedNumber.slice(1);
+  }
+  
+  // WhatsApp link
+  const message = `Hello ${sellerName}, I am interested in your product.`;
+  const waLink = `https://wa.me/${formattedNumber}?text=${encodeURIComponent(message)}`;
+  // const waLink = `https://wa.me/923140018046?text=${encodeURIComponent(message)}`;
+  
+  // Open WhatsApp in new tab
+  window.open(waLink, "_blank");
+
+  toast({
+    title: "Opening WhatsApp",
+    description: `You are being redirected to WhatsApp to contact ${sellerName}.`,
+  });
+};
+
 
   // POST your item
   const handlePostItem = async () => {
@@ -241,12 +298,24 @@ const Marketplace = () => {
                   </div>
                   <p className="text-sm text-muted-foreground">Seller: {item.seller_name} ({item.seller_city})</p>
                 </CardContent>
-                <CardFooter>
+                {/* <CardFooter>
                   <Button className="w-full gap-2" variant="outline" onClick={() => handleContact(item.seller_name)}>
                     <Phone className="h-4 w-4" />
                     Contact Seller
                   </Button>
-                </CardFooter>
+                </CardFooter> */}
+                <CardFooter>
+                  
+  <Button
+    className="w-full gap-2"
+    variant="outline"
+    onClick={() => handleContact(item.seller_name, item.seller_contact)}
+  >
+    <Phone className="h-4 w-4" />
+    Contact Seller
+  </Button>
+</CardFooter>
+
               </Card>
             ))}
           </div>
